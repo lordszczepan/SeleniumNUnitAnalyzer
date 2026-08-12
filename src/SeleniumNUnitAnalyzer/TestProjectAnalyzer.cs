@@ -8,15 +8,6 @@ using System.Linq;
 
 public sealed class TestProjectAnalyzer
 {
-    private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git",
-        "bin",
-        "obj",
-        "packages",
-        "TestResults"
-    };
-
     private readonly CommandLineOptions _options;
 
     public TestProjectAnalyzer(CommandLineOptions options)
@@ -26,7 +17,7 @@ public sealed class TestProjectAnalyzer
 
     public AnalysisReport Analyze()
     {
-        var files = DiscoverCSharpFiles(_options.TargetDirectory).ToList();
+        var files = ProjectFileDiscoverer.DiscoverCSharpFiles(_options.TargetDirectory).ToList();
         var report = new AnalysisReport
         {
             Statistics = { DiscoveredFiles = files.Count }
@@ -50,7 +41,7 @@ public sealed class TestProjectAnalyzer
 
     public MethodUsageReport FindMethodUsages()
     {
-        var files = DiscoverCSharpFiles(_options.TargetDirectory).ToList();
+        var files = ProjectFileDiscoverer.DiscoverCSharpFiles(_options.TargetDirectory).ToList();
         var report = new MethodUsageReport
         {
             TargetClassName = _options.TargetClassName ?? string.Empty,
@@ -58,47 +49,74 @@ public sealed class TestProjectAnalyzer
             Statistics = { DiscoveredFiles = files.Count }
         };
 
+        var syntaxTrees = new List<Microsoft.CodeAnalysis.SyntaxTree>();
         foreach (string file in files)
         {
             string source = File.ReadAllText(file);
             var syntaxTree = CSharpSyntaxTree.ParseText(source, path: file);
-            var analyzer = new MethodUsageAnalyzer(
-                syntaxTree,
-                _options.TargetClassName ?? string.Empty,
-                _options.TargetMethodName ?? string.Empty);
+            syntaxTrees.Add(syntaxTree);
+            report.Statistics.AnalyzedFiles++;
+        }
+
+        var analyzer = new RecursiveMethodUsageAnalyzer(
+            syntaxTrees,
+            _options.TargetClassName ?? string.Empty,
+            _options.TargetMethodName ?? string.Empty);
+        var result = analyzer.Analyze();
+
+        report.Statistics.TestFixtures = result.TestFixtures;
+        report.Statistics.TestMethods = result.TestMethods;
+        report.DirectTestUsages.AddRange(result.DirectTestUsages);
+        report.LifecycleUsages.AddRange(result.LifecycleUsages);
+
+        return report;
+    }
+
+    public CategoryReport ListCategories()
+    {
+        var files = ProjectFileDiscoverer.DiscoverCSharpFiles(_options.TargetDirectory).ToList();
+        var report = new CategoryReport
+        {
+            Statistics = { DiscoveredFiles = files.Count }
+        };
+
+        foreach (string file in files)
+        {
+            string source = File.ReadAllText(file);
+            var syntaxTree = CSharpSyntaxTree.ParseText(source, path: file);
+            var analyzer = new CategoryAnalyzer(syntaxTree);
             var result = analyzer.Analyze();
 
             report.Statistics.AnalyzedFiles++;
             report.Statistics.TestFixtures += result.TestFixtures;
             report.Statistics.TestMethods += result.TestMethods;
-            report.DirectTestUsages.AddRange(result.DirectTestUsages);
-            report.LifecycleUsages.AddRange(result.LifecycleUsages);
+            report.TestCases.AddRange(result.TestCases);
         }
 
         return report;
     }
 
-    private static IEnumerable<string> DiscoverCSharpFiles(string rootDirectory)
+    public ParallelClassReport ListParallelClasses()
     {
-        var pending = new Stack<string>();
-        pending.Push(rootDirectory);
-
-        while (pending.Count > 0)
+        var files = ProjectFileDiscoverer.DiscoverCSharpFiles(_options.TargetDirectory).ToList();
+        var report = new ParallelClassReport
         {
-            string current = pending.Pop();
+            Statistics = { DiscoveredFiles = files.Count }
+        };
 
-            foreach (string directory in Directory.EnumerateDirectories(current))
-            {
-                if (!ExcludedDirectories.Contains(Path.GetFileName(directory)))
-                {
-                    pending.Push(directory);
-                }
-            }
+        foreach (string file in files)
+        {
+            string source = File.ReadAllText(file);
+            var syntaxTree = CSharpSyntaxTree.ParseText(source, path: file);
+            var analyzer = new ParallelClassAnalyzer(syntaxTree);
+            var result = analyzer.Analyze();
 
-            foreach (string file in Directory.EnumerateFiles(current, "*.cs"))
-            {
-                yield return file;
-            }
+            report.Statistics.AnalyzedFiles++;
+            report.Statistics.TestFixtures += result.TestFixtures;
+            report.Statistics.TestMethods += result.TestMethods;
+            report.Classes.AddRange(result.Classes);
         }
+
+        return report;
     }
 }

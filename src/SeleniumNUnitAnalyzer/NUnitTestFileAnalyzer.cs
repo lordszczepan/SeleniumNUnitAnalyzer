@@ -88,7 +88,26 @@ public sealed class NUnitTestFileAnalyzer
 
     private static bool HasCategory(MemberDeclarationSyntax member)
     {
-        return HasAttribute(member.AttributeLists, "Category");
+        return HasAttribute(member.AttributeLists, "Category") ||
+               HasCategoryNamedArgument(member.AttributeLists);
+    }
+
+    private static bool HasCategoryNamedArgument(SyntaxList<AttributeListSyntax> attributeLists)
+    {
+        return attributeLists
+            .SelectMany(list => list.Attributes)
+            .Any(attribute =>
+                IsTestCategoryHost(attribute) &&
+                attribute.ArgumentList?.Arguments.Any(argument =>
+                    argument.NameEquals?.Name.Identifier.Text == "Category") == true);
+    }
+
+    private static bool IsTestCategoryHost(AttributeSyntax attribute)
+    {
+        string attributeName = NormalizeAttributeName(attribute.Name.ToString());
+        return attributeName == "Test" ||
+               attributeName == "TestCase" ||
+               attributeName == "TestCaseSource";
     }
 
     private static bool HasAttribute(SyntaxList<AttributeListSyntax> attributeLists, string attributeName)

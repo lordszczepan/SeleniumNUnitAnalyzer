@@ -75,6 +75,28 @@ public class LoginTests
     }
 
     [Test]
+    public void Analyze_AsExpressionTargetAlias_ReportsDirectUsage()
+    {
+        string source = """
+using NUnit.Framework;
+
+public class ValidationTests
+{
+    [Test]
+    public void CanEditValidationPlan()
+    {
+        var valPlanPage = dashboard.OpenDeliverablePageByName("Validation Plan") as ValidationPlanSettingsPage;
+        valPlanPage.EnterEditMode();
+    }
+}
+""";
+
+        var result = Analyze(source, "ValidationPlanSettingsPage", "EnterEditMode");
+
+        Assert.That(result.DirectTestUsages.Single().Invocation, Is.EqualTo("valPlanPage.EnterEditMode()"));
+    }
+
+    [Test]
     public void Analyze_TargetCallInSetUp_ReportsLifecycleUsageWithClassTests()
     {
         string source = """

@@ -1,6 +1,7 @@
 namespace SeleniumNUnitAnalyzer;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
@@ -189,7 +190,7 @@ public sealed class MethodUsageAnalyzer
 
             foreach (var variable in declaration.Variables)
             {
-                if (isTargetType || IsTargetObjectCreation(variable.Initializer?.Value))
+                if (isTargetType || IsTargetInitializer(variable.Initializer?.Value))
                 {
                     yield return variable.Identifier.Text;
                 }
@@ -197,10 +198,17 @@ public sealed class MethodUsageAnalyzer
         }
     }
 
-    private bool IsTargetObjectCreation(ExpressionSyntax? expression)
+    private bool IsTargetInitializer(ExpressionSyntax? expression)
     {
-        return expression is ObjectCreationExpressionSyntax objectCreation &&
-               IsTargetType(objectCreation.Type.ToString());
+        return expression switch
+        {
+            ObjectCreationExpressionSyntax objectCreation => IsTargetType(objectCreation.Type.ToString()),
+            BinaryExpressionSyntax binaryExpression when binaryExpression.IsKind(SyntaxKind.AsExpression) =>
+                IsTargetType(binaryExpression.Right.ToString()),
+            CastExpressionSyntax castExpression => IsTargetType(castExpression.Type.ToString()),
+            ParenthesizedExpressionSyntax parenthesizedExpression => IsTargetInitializer(parenthesizedExpression.Expression),
+            _ => false
+        };
     }
 
     private bool IsTargetType(string typeName)

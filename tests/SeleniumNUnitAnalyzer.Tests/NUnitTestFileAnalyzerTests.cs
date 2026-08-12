@@ -145,6 +145,49 @@ public class SearchTests
         Assert.That(result.Issues, Is.Empty);
     }
 
+    [Test]
+    public void Analyze_TestCaseWithCategoryNamedArgument_DoesNotReportCategoryIssue()
+    {
+        string source = """
+using NUnit.Framework;
+
+[Parallelizable]
+public class CipTests
+{
+    [TestCase("approver", ExpectedResult = true, Category = Tags.Problem)]
+    public bool ShouldEnterNewCipView(string user)
+    {
+        return true;
+    }
+}
+""";
+
+        var result = Analyze(source);
+
+        Assert.That(result.Issues.Any(issue => issue.RuleId == "NUNIT001"), Is.False);
+    }
+
+    [Test]
+    public void Analyze_TestWithCategoryNamedArgument_DoesNotReportCategoryIssue()
+    {
+        string source = """
+using NUnit.Framework;
+
+[Parallelizable]
+public class CipTests
+{
+    [Test(Category = Tags.Problem)]
+    public void ShouldEnterNewCipView()
+    {
+    }
+}
+""";
+
+        var result = Analyze(source);
+
+        Assert.That(result.Issues.Any(issue => issue.RuleId == "NUNIT001"), Is.False);
+    }
+
     private static FileAnalysisResult Analyze(string source, bool allowNonParallelFixtures = false)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source, path: "Tests.cs");

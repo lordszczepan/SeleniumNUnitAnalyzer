@@ -1,6 +1,7 @@
 namespace SeleniumNUnitAnalyzer;
 
 using System.IO;
+using System.Linq;
 
 public sealed class CommandLineOptions
 {
@@ -11,6 +12,14 @@ public sealed class CommandLineOptions
     public bool AllowNonParallelFixtures { get; set; }
 
     public bool FindUsages { get; set; }
+
+    public bool ListCategories { get; set; }
+
+    public bool ProductMatrix { get; set; }
+
+    public bool MissingProducts { get; set; }
+
+    public bool ParallelClasses { get; set; }
 
     public string? TargetClassName { get; set; }
 
@@ -36,6 +45,18 @@ public sealed class CommandLineOptions
                     break;
                 case "--find-usages":
                     options.FindUsages = true;
+                    break;
+                case "--list-categories":
+                    options.ListCategories = true;
+                    break;
+                case "--product-matrix":
+                    options.ProductMatrix = true;
+                    break;
+                case "--missing-products":
+                    options.MissingProducts = true;
+                    break;
+                case "--parallel-classes":
+                    options.ParallelClasses = true;
                     break;
                 case "--class":
                     if (i + 1 < args.Length)
@@ -75,7 +96,22 @@ public sealed class CommandLineOptions
             return false;
         }
 
-        if (FindUsages || !string.IsNullOrWhiteSpace(TargetClassName) || !string.IsNullOrWhiteSpace(TargetMethodName))
+        int selectedModes = new[] { FindUsages, ListCategories, ProductMatrix, MissingProducts, ParallelClasses }
+            .Count(selected => selected);
+        if (selectedModes > 1)
+        {
+            errorMessage = "Use only one report mode at a time.";
+            return false;
+        }
+
+        bool hasUsageTarget = !string.IsNullOrWhiteSpace(TargetClassName) || !string.IsNullOrWhiteSpace(TargetMethodName);
+        if (hasUsageTarget && !FindUsages)
+        {
+            errorMessage = "Use --class/--method only with --find-usages.";
+            return false;
+        }
+
+        if (FindUsages || hasUsageTarget)
         {
             if (string.IsNullOrWhiteSpace(TargetClassName))
             {
