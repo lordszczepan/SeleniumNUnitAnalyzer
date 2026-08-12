@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SeleniumNUnitAnalyzer/SeleniumNUnitAnalyzer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SeleniumNUnitAnalyzer.Tests/SeleniumNUnitAnalyzer.Tests.csproj" />
+  </Folder>
+</Solution>

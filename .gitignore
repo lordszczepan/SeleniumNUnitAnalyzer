@@ -1,0 +1,24 @@
+# Build output
+bin/
+obj/
+
+# Test output
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# IDE/editor files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Local reports
+SeleniumNUnitAnalysisReport.json
+SeleniumNUnitMethodUsageReport.json
+*-selfcheck.json
