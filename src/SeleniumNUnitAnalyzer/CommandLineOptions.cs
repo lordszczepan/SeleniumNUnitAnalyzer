@@ -1,5 +1,6 @@
 namespace SeleniumNUnitAnalyzer;
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -24,6 +25,8 @@ public sealed class CommandLineOptions
     public string? TargetClassName { get; set; }
 
     public string? TargetMethodName { get; set; }
+
+    public List<string> UnknownOptions { get; } = [];
 
     public static CommandLineOptions Parse(string[] args)
     {
@@ -71,7 +74,11 @@ public sealed class CommandLineOptions
                     }
                     break;
                 default:
-                    if (!arg.StartsWith("--"))
+                    if (arg.StartsWith("--"))
+                    {
+                        options.UnknownOptions.Add(arg);
+                    }
+                    else
                     {
                         options.TargetDirectory = arg.Trim('"');
                     }
@@ -84,6 +91,12 @@ public sealed class CommandLineOptions
 
     public bool IsValid(out string errorMessage)
     {
+        if (UnknownOptions.Count > 0)
+        {
+            errorMessage = $"Unknown option: {string.Join(", ", UnknownOptions)}";
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(TargetDirectory))
         {
             errorMessage = "Target directory is required.";
